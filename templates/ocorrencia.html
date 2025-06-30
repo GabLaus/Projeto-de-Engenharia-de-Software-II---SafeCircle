@@ -14,8 +14,6 @@
     body {
       font-family: Arial, sans-serif;
       background-color: #f8f9fa;
-      display: grid;
-      place-items: center;
       min-height: 100vh;
     }
 
@@ -25,6 +23,7 @@
       background-color: #fff;
       border-radius: 16px;
       padding: 20px;
+      margin: 80px auto 20px auto; /* espaço para o botão fixo */
       display: grid;
       gap: 20px;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
@@ -61,7 +60,7 @@
       resize: none;
     }
 
-    button {
+    button[type="submit"] {
       background-color: #dc3545;
       color: white;
       padding: 12px;
@@ -74,8 +73,48 @@
       transition: background-color 0.3s ease;
     }
 
-    button:hover {
+    button[type="submit"]:hover {
       background-color: #c82333;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      height: 100vh;
+      width: 250px;
+      position: fixed;
+      top: 0;
+      left: -250px;
+      background-color: #c82333;
+      color: white;
+      padding: 20px;
+      box-sizing: border-box;
+      transition: left 0.3s ease;
+      z-index: 1000;
+    }
+
+    .sidebar.active {
+      left: 0;
+    }
+
+    .sidebar a {
+      color: #ecf0f1;
+      text-decoration: none;
+      display: block;
+      margin: 15px 0;
+      text-align: center;
+    }
+
+    /* Botão menu fixo no canto superior esquerdo */
+    .menu-btn {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      font-size: 30px;
+      background: none;
+      border: none;
+      color: #2c3e50;
+      cursor: pointer;
+      z-index: 1100;
     }
 
     @media screen and (max-width: 400px) {
@@ -83,16 +122,31 @@
         padding: 16px;
       }
 
-      button {
+      .botao {
         font-size: 14px;
-        padding: 10px;
+        padding: 12px;
       }
     }
   </style>
 </head>
 <body>
 
-  <div class="container">
+  <!-- Botão do menu -->
+  <button class="menu-btn" onclick="toggleSidebar()">☰</button>
+
+  <!-- Sidebar -->
+  <div class="sidebar" id="sidebar">
+    <h2 style="text-align: center;">Menu</h2>
+    <a href="{{ url_for('configuracoes') }}">Configurações</a>
+    <a href="#">Avaliação</a>
+    <a href="{{ url_for('usuario') }}">Perfil</a>
+    <a href="#">Entidades</a>
+    <a href="{{ url_for('historico_de_ocorrencias') }}">Histórico de Ocorrências</a>
+    <a href="{{ url_for('login') }}">Sair</a>
+  </div>
+
+  <!-- Conteúdo principal -->
+  <div class="container" id="main">
     <header>
       <h2>Reportar Ocorrência</h2>
       <hr />
@@ -119,6 +173,13 @@
       </div>
     </form>
   </div>
+
+  <script>
+    function toggleSidebar() {
+      const sidebar = document.getElementById('sidebar');
+      sidebar.classList.toggle('active');
+    }
+  </script>
 
 </body>
 </html>
