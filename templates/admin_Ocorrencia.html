@@ -159,40 +159,46 @@
 <body>
   <div class="container">
     <header>
-      <button class="menu-btn" onclick="toggleSidebar()">☰</button>
-  
-      <div class="sidebar" id="sidebar">
-        <h2>Menu</h2>
-        <a href="#">Cadastros</a>
-        <a href="#">Ocorrências</a>
-      </div>
-      <h2>Autorização de Ocorrência</h2>
-    </header>
+  <button class="menu-btn" onclick="toggleSidebar()">☰</button>
 
-    <div class="ocorrencia-info">
-      <strong>Tipo da Ocorrência:</strong><br/>
-      <strong>Localização:</strong><br/>
-      <strong>Descrição:</strong><br/>
-      <textarea readonly>Descreva aqui a situação que ocorreu, detalhando o que foi reportado para validação.</textarea>
+  <div class="sidebar" id="sidebar">
+    <h2>Menu</h2>
+    <a href="{{ url_for('admin_cadastros') }}">Cadastros</a>
+    <a href="{{ url_for('admin_ocorrencias') }}">Ocorrências</a>
+  </div>
+
+  <h2>Autorização de Ocorrência</h2>
+</header>
+
+{% for ocorrencia in ocorrencias %}
+  <div class="ocorrencia-info">
+    <strong>Tipo da Ocorrência:</strong> {{ ocorrencia.titulo }}<br/>
+    <strong>Localização:</strong> {{ ocorrencia.local }}<br/>
+    <strong>Descrição:</strong><br/>
+    <textarea readonly>{{ ocorrencia.descricao }}</textarea>
+  </div>
+
+  <form action="/admin/autorizar_ocorrencia" method="POST">
+    <input type="hidden" name="id_ocorrencia" value="{{ ocorrencia.id }}">
+    <label for="observacoes">Observações do Admin (opcional):</label>
+    <textarea id="observacoes" name="observacoes" placeholder="Comentários para registro ou justificativa..."></textarea>
+
+    <div class="actions">
+      <button type="submit" name="status" value="aprovado" class="btn-approve">Aprovar</button>
+      <button type="submit" name="status" value="rejeitado" class="btn-reject">Rejeitar</button>
     </div>
-
-    <form action="/admin/autorizar_ocorrencia" method="POST">
-      <label for="observacoes">Observações do Admin (opcional):</label>
-      <textarea id="observacoes" name="observacoes" placeholder="Comentários para registro ou justificativa..."></textarea>
-
-      <div class="actions">
-        <button type="submit" name="status" value="aprovado" class="btn-approve">Aprovar</button>
-        <button type="submit" name="status" value="rejeitado" class="btn-reject">Rejeitar</button>
-      </div>
+  </form>
+  <hr>
+{% else %}
+  <p style="text-align:center; color: #555;">Nenhuma ocorrência encontrada.</p>
+{% endfor %}
     </form>
   </div>
-  <script>
-      function toggleSidebar() {
-      const sidebar = document.getElementById('sidebar');
-      const main = document.getElementById('main');
-      sidebar.classList.toggle('active');
-      main.classList.toggle('shifted');
-    }
-  </script>
+<script>
+  function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    sidebar.classList.toggle('active');
+  }
+</script>
 </body>
 </html>
