@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, redirect, session, url_for, flash
+import base64
 from werkzeug.security import generate_password_hash, check_password_hash
 import sqlite3
 from datetime import datetime
@@ -10,8 +11,6 @@ DB_PATH = "safecircle.db"
 ##########################################
 ########### BANCO DE DADOS ###############
 ##########################################
-
-
 
 def criar_banco():
     with sqlite3.connect(DB_PATH) as conn:
@@ -27,7 +26,8 @@ def criar_banco():
             cpf TEXT UNIQUE NOT NULL CHECK(LENGTH(cpf) = 11),
             rg TEXT UNIQUE NOT NULL CHECK(LENGTH(rg) <= 14),
             ind_front BLOB,
-            ind_back BLOB
+            ind_back BLOB,
+            status TEXT DEFAULT 'pendente' CHECK(status IN ('pendente', 'aprovado', 'rejeitado'))
         );        
         """)
         cursor.execute("""
@@ -44,14 +44,13 @@ def criar_banco():
         );
         """)
         cursor.execute("""
-        CREATE TABLE IF NOT EXISTS Adimin(
-            id_adimin INTEGER PRIMARY KEY AUTOINCREMENT,
+        CREATE TABLE IF NOT EXISTS Admin (
+            id_admin INTEGER PRIMARY KEY AUTOINCREMENT,
             email TEXT UNIQUE NOT NULL CHECK(LENGTH(email) <= 50),
             senha TEXT NOT NULL CHECK(LENGTH(senha) <= 255)
         );        
         """)
         conn.commit()
-
 
 
 ##########################################
@@ -69,17 +68,36 @@ def login():
 
         with sqlite3.connect(DB_PATH) as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT nome, senha FROM Usuario WHERE email = ?", (email,))
+
+            # Verifica se é admin
+            cursor.execute("SELECT id_admin, senha FROM Admin WHERE email = ?", (email,))
+            admin = cursor.fetchone()
+            if admin:
+                id_admin, senha_hash = admin
+                if check_password_hash(senha_hash, senha):
+                    session["admin"] = id_admin
+                    return redirect("/admin/cadastros")
+
+            # Se não for admin, tenta login como usuário comum
+            cursor.execute("SELECT nome, senha, status FROM Usuario WHERE email = ?", (email,))
             resultado = cursor.fetchone()
 
-            if resultado and check_password_hash(resultado[1], senha):
-                session["usuario"] = resultado[0]
-                return redirect("/telaPrincipal")
-            else:
-                flash("Email ou senha inválidos!", "erro")
-                return redirect("/login")
+            if resultado:
+                nome, senha_hash, status = resultado
+                if status != "aprovado":
+                    flash("Seu cadastro ainda não foi aprovado!", "erro")
+                    return redirect("/login")
+
+                if check_password_hash(senha_hash, senha):
+                    session["usuario"] = nome
+                    return redirect("/telaPrincipal")
+
+            flash("Email ou senha inválidos!", "erro")
+            return redirect("/login")
 
     return render_template("login.html")
+
+
 
 
 
@@ -103,9 +121,9 @@ def cadastrar():
             cursor = conn.cursor()
             cursor.execute("""
                 INSERT INTO Usuario (
-                    nome, email, senha, dat_nac, telefone, cpf, rg, ind_front, ind_back
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)               
-            """, (nome, email, senha, nascimento, telefone, cpf, rg, ind_front, ind_back))
+                    nome, email, senha, dat_nac, telefone, cpf, rg, ind_front, ind_back, status
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)               
+            """, (nome, email, senha, nascimento, telefone, cpf, rg, ind_front, ind_back, "pendente"))          
             conn.commit()
         return redirect("/login")
     except sqlite3.IntegrityError as e:
@@ -151,8 +169,6 @@ def ocorrencia():
             return f"Erro ao registrar ocorrência: {str(e)}"
 
     return render_template("ocorrencia.html")
-
-
 
 
 
@@ -299,6 +315,122 @@ def historico_de_ocorrencias():
 
 
 
+
+##########################################
+################# Admin ##################
+##########################################
+
+
+@app.route("/admin/cadastros")
+def admin_cadastros():
+    if "admin" not in session:
+        return redirect("/login")
+
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT id_user, nome, email, telefone, cpf, rg, dat_nac, ind_front, ind_back FROM Usuario WHERE status = 'pendente'")
+        resultados = cursor.fetchall()
+
+        usuarios = []
+        for row in resultados:
+            usuario = {
+                "id_user": row[0],
+                "nome": row[1],
+                "email": row[2],
+                "telefone": row[3],
+                "cpf": row[4],
+                "rg": row[5],
+                "dat_nac": row[6],
+                "front": base64.b64encode(row[7]).decode('utf-8') if row[7] else '',
+                "back": base64.b64encode(row[8]).decode('utf-8') if row[8] else '',
+            }
+            usuarios.append(usuario)
+
+    return render_template("admin_Cadastro.html", usuarios=usuarios)
+
+
+
+@app.route("/admin/validar_cadastro", methods=["POST"])
+def validar_cadastro():
+    if "admin" not in session:
+        return redirect("/login")
+
+    id_user = request.form["id_user"]
+    status = request.form["status"]
+    observacoes = request.form.get("observacoes", "")
+
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("UPDATE Usuario SET status = ? WHERE id_user = ?", (status, id_user))
+        conn.commit()
+
+    return redirect("/admin/cadastros")
+
+
+
+@app.route("/admin/ocorrencias")
+def admin_ocorrencias():
+    if "admin" not in session:
+        return redirect("/login")
+
+    # aqui você vai buscar ocorrências "pendentes" e renderizar admin_Ocorrencia.html depois
+    return render_template("admin_Ocorrencia.html")
+
+
+
+@app.route("/admin/ocorrencias_pendentes")
+def admin_ocorrencias_pendentes():
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id_ocorrencia, titulo, local, descricao
+            FROM Ocorrencia
+            WHERE estagio = 'pendente'
+        """)
+        ocorrencias = cursor.fetchall()
+
+        lista = [
+            {"id": o[0], "titulo": o[1], "local": o[2], "descricao": o[3]}
+            for o in ocorrencias
+        ]
+
+    return render_template("admin_Ocorrencia.html", ocorrencias=lista)
+
+
+@app.route("/admin/autorizar_ocorrencia", methods=["POST"])
+def autorizar_ocorrencia():
+    id_ocorrencia = request.form["id_ocorrencia"]
+    status = request.form["status"]
+    observacoes = request.form.get("observacoes", "")
+
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE Ocorrencia
+            SET estagio = ?
+            WHERE id_ocorrencia = ?
+        """, (status, id_ocorrencia))
+        conn.commit()
+
+    flash(f"Ocorrência {status} com sucesso!", "sucesso")
+    return redirect("/admin/ocorrencias_pendentes")
+
+
+def inserir_admin_manual():
+    email = "admin@safecircle.com"
+    senha = generate_password_hash("admin123")
+
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        try:
+            cursor.execute("INSERT INTO Admin (email, senha) VALUES (?, ?)", (email, senha))
+            conn.commit()
+            print("Admin inserido com sucesso!")
+        except sqlite3.IntegrityError:
+            print("Admin já existe.")
+
+
+
 ##########################################
 ################# Rotas ##################
 ##########################################
@@ -321,6 +453,11 @@ def usuario_simples():
 def cadastro():
     return render_template('cadastro.html')
 
+@app.route("/admin/logout", methods=["POST"])
+def admin_logout():
+    session.clear()
+    return redirect("/login")
+
 @app.route("/logout", methods=["POST"])
 def logout():
     session.clear()
@@ -330,6 +467,10 @@ def logout():
 def index():
     return render_template("login.html")
 
+
+
 if __name__ == "__main__":
     criar_banco()
+    inserir_admin_manual()
     app.run(debug=True)
+
