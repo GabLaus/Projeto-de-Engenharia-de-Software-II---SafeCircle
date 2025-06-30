@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Contatos de Emergência</title>
+  <style>
+    body {
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f1f3f5;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      position: relative;
+    }
+
+    .menu-btn {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      font-size: 30px;
+      background: none;
+      border: none;
+      color: #2c3e50;
+      cursor: pointer;
+      z-index: 1100;
+    }
+
+    .sidebar {
+      height: 100vh;
+      width: 250px;
+      position: fixed;
+      top: 0;
+      left: -250px;
+      background-color: #c82333;
+      color: white;
+      padding: 20px;
+      box-sizing: border-box;
+      transition: left 0.3s ease;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+
+    .sidebar.active {
+      left: 0;
+    }
+
+    .sidebar a {
+      color: #ecf0f1;
+      text-decoration: none;
+      display: block;
+      margin: 15px 0;
+    }
+
+    main {
+      background: white;
+      border-radius: 16px;
+      max-width: 420px;
+      width: 90vw;
+      padding: 24px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+      margin-top: 80px;
+    }
+
+    header h1 {
+      color: #dc3545;
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    ul.contacts {
+      list-style-type: none;
+      padding: 0;
+    }
+
+    ul.contacts > li {
+      margin-bottom: 16px;
+      padding: 16px;
+      border-radius: 10px;
+      background: #f8f9fa;
+      box-shadow: inset 0 0 4px rgba(0,0,0,0.05);
+    }
+
+    ul.contacts > li > span {
+      font-weight: bold;
+      color: #2c3e50;
+    }
+
+    ul.contacts ul {
+      margin-top: 8px;
+      padding-left: 20px;
+    }
+
+    ul.contacts ul li {
+      font-style: italic;
+      font-weight: bold;
+      color: #444;
+    }
+
+    ul.contacts ul li::before {
+      content: "📞 ";
+      margin-right: 5px;
+    }
+  </style>
+</head>
+<body>
+  <button class="menu-btn" onclick="toggleSidebar()">☰</button>
+
+  <div class="sidebar" id="sidebar">
+    <h2>Menu</h2>
+    <a href="#">Configurações</a>
+    <a href="#">Avaliação</a>
+    <a href="#">Perfil</a>
+    <a href="#">Entidades</a>
+    <a href="#">Histórico de Ocorrências</a>
+    <a href="#">Sair</a>
+  </div>
+
+  <main>
+    <header>
+      <h1>Contatos de Emergência</h1>
+    </header>
+    <ul class="contacts">
+      <li>
+        <span>Polícia</span>
+        <ul><li>190</li></ul>
+      </li>
+      <li>
+        <span>Bombeiros</span>
+        <ul><li>193</li></ul>
+      </li>
+      <li>
+        <span>Ambulância</span>
+        <ul><li>192</li></ul>
+      </li>
+      <li>
+        <span>Defesa Civil</span>
+        <ul><li>199</li></ul>
+      </li>
+      <li>
+        <span>Guarda Municipal</span>
+        <ul><li>153</li></ul>
+      </li>
+    </ul>
+  </main>
+
+  <script>
+    function toggleSidebar() {
+      document.getElementById('sidebar').classList.toggle('active');
+    }
+  </script>
+</body>
+</html>
