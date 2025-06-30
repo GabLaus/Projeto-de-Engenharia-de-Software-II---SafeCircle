@@ -27,7 +27,7 @@ def criar_banco():
             rg TEXT UNIQUE NOT NULL CHECK(LENGTH(rg) <= 14),
             ind_front BLOB,
             ind_back BLOB,
-            status TEXT DEFAULT 'pendente' CHECK(status IN ('pendente', 'aprovado', 'rejeitado'))
+            status TEXT DEFAULT 'Em andamento' CHECK(status IN ('Em andamento', 'aprovado', 'rejeitado'))
         );        
         """)
         cursor.execute("""
@@ -36,7 +36,7 @@ def criar_banco():
             data_inicio DATETIME NOT NULL,
             data_conclusao DATETIME,
             descricao TEXT CHECK(LENGTH(descricao) <= 80),
-            estagio TEXT NOT NULL CHECK(LENGTH(estagio) <= 50),
+            estagio TEXT NOT NULL DEFAULT 'Em andamento' CHECK(LENGTH(estagio) <= 50),
             titulo TEXT,
             local TEXT,
             id_user INTEGER,
@@ -52,13 +52,22 @@ def criar_banco():
         """)
         conn.commit()
 
+def inserir_admin_manual():
+    email = "admin@safecircle.com"
+    senha = generate_password_hash("admin123")
+
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        try:
+            cursor.execute("INSERT INTO Admin (email, senha) VALUES (?, ?)", (email, senha))
+            conn.commit()
+            print("Admin inserido com sucesso!")
+        except sqlite3.IntegrityError:
+            print("Admin já existe.")
 
 ##########################################
-############### Funções ##################
+############### LOGIN ####################
 ##########################################
-
-
-
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -69,7 +78,6 @@ def login():
         with sqlite3.connect(DB_PATH) as conn:
             cursor = conn.cursor()
 
-            # Verifica se é admin
             cursor.execute("SELECT id_admin, senha FROM Admin WHERE email = ?", (email,))
             admin = cursor.fetchone()
             if admin:
@@ -78,7 +86,6 @@ def login():
                     session["admin"] = id_admin
                     return redirect("/admin/cadastros")
 
-            # Se não for admin, tenta login como usuário comum
             cursor.execute("SELECT nome, senha, status FROM Usuario WHERE email = ?", (email,))
             resultado = cursor.fetchone()
 
@@ -97,11 +104,13 @@ def login():
 
     return render_template("login.html")
 
+##########################################
+########### CADASTRO USUÁRIO #############
+##########################################
 
-
-
-
-
+@app.route("/cadastro", methods=["GET"])
+def cadastro():
+    return render_template("cadastro.html")
 
 @app.route("/cadastrar", methods=["POST"])
 def cadastrar():
@@ -112,7 +121,6 @@ def cadastrar():
     telefone = request.form["telefone"]
     cpf = request.form["cpf"]
     rg = request.form["rg"]
-
     ind_front = request.files["ind_front"].read() if "ind_front" in request.files else None
     ind_back = request.files["ind_back"].read() if "ind_back" in request.files else None
 
@@ -123,16 +131,17 @@ def cadastrar():
                 INSERT INTO Usuario (
                     nome, email, senha, dat_nac, telefone, cpf, rg, ind_front, ind_back, status
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)               
-            """, (nome, email, senha, nascimento, telefone, cpf, rg, ind_front, ind_back, "pendente"))          
+            """, (nome, email, senha, nascimento, telefone, cpf, rg, ind_front, ind_back, "Em andamento"))          
             conn.commit()
         return redirect("/login")
     except sqlite3.IntegrityError as e:
         return f"Erro: {str(e)}"
 
+##########################################
+########### OCORRÊNCIAS ##################
+##########################################
 
-
-
-@app.route("/ocorrencia" , methods=["GET", "POST"])
+@app.route("/ocorrencia", methods=["GET", "POST"])
 def ocorrencia():
     if "usuario" not in session:
         return redirect("/login")
@@ -148,15 +157,11 @@ def ocorrencia():
         try:
             with sqlite3.connect(DB_PATH) as conn:
                 cursor = conn.cursor()
-                cursor.execute(
-                    "SELECT id_user FROM Usuario WHERE nome = ?",
-                    (session["usuario"],)
-                )
+                cursor.execute("SELECT id_user FROM Usuario WHERE nome = ?", (session["usuario"],))
                 resultado = cursor.fetchone()
-                if resultado:
-                    id_user = resultado[0]
-                else:
+                if not resultado:
                     return "Usuário não encontrado."
+                id_user = resultado[0]
 
                 cursor.execute("""
                     INSERT INTO Ocorrencia (data_inicio, data_conclusao, descricao, estagio, titulo, local, id_user)
@@ -170,7 +175,32 @@ def ocorrencia():
 
     return render_template("ocorrencia.html")
 
+@app.route("/historicoDeOcorrencias")
+def historico_de_ocorrencias():
+    if "usuario" not in session:
+        return redirect("/login")
 
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT id_user FROM Usuario WHERE nome = ?", (session["usuario"],))
+        resultado = cursor.fetchone()
+        if not resultado:
+            return "Usuário não encontrado."
+        id_user = resultado[0]
+
+        cursor.execute("""
+            SELECT data_inicio, data_conclusao, titulo, descricao, estagio, local
+            FROM Ocorrencia
+            WHERE id_user = ?
+            ORDER BY data_inicio DESC
+        """, (id_user,))
+        ocorrencias = cursor.fetchall()
+
+    return render_template("historicoDeOcorrencias.html", ocorrencias=ocorrencias)
+
+##########################################
+########## PERFIL DO USUÁRIO #############
+##########################################
 
 @app.route("/usuario", methods=["GET", "POST"])
 def usuario():
@@ -185,7 +215,6 @@ def usuario():
         telefone = request.form["telefone"]
         cpf = request.form["cpf"]
         rg = request.form["rg"]
-
         ind_front = request.files["ind_front"].read() if "ind_front" in request.files else None
         ind_back = request.files["ind_back"].read() if "ind_back" in request.files else None
 
@@ -197,7 +226,7 @@ def usuario():
                     WHERE nome=?
                 """, (nome, email, senha, nascimento, telefone, cpf, rg, ind_front, ind_back, session["usuario"]))
                 conn.commit()
-            session["usuario"] = nome
+                session["usuario"] = nome
         except sqlite3.IntegrityError as e:
             return f"Erro ao atualizar: {str(e)}"
 
@@ -208,12 +237,7 @@ def usuario():
 
     if dados:
         return render_template("usuario.html", usuario=dados)
-    else:
-        return "Usuário não encontrado."
-
-
-
-
+    return "Usuário não encontrado."
 
 @app.route("/editar", methods=["GET", "POST"])
 def editar():
@@ -230,9 +254,8 @@ def editar():
             nascimento = request.form["nascimento"]
 
             cursor.execute("""
-                UPDATE Usuario
-                SET nome = ?, email = ?, telefone = ?, dat_nac = ?
-                WHERE nome = ?
+                UPDATE Usuario SET nome=?, email=?, telefone=?, dat_nac=?
+                WHERE nome=?
             """, (nome, email, telefone, nascimento, session["usuario"]))
             conn.commit()
             session["usuario"] = nome
@@ -242,12 +265,7 @@ def editar():
         usuario = cursor.fetchone()
         if usuario:
             return render_template("editar_perfil.html", usuario=usuario)
-        else:
-            return "Usuário não encontrado."
-
-
-
-
+        return "Usuário não encontrado."
 
 @app.route("/alterar_senha", methods=["GET", "POST"])
 def alterar_senha():
@@ -266,11 +284,8 @@ def alterar_senha():
             if not resultado:
                 return "Usuário não encontrado."
 
-            senha_no_banco = resultado[0]
-
-            if not check_password_hash(senha_no_banco, senha_atual):
+            if not check_password_hash(resultado[0], senha_atual):
                 return "Senha atual incorreta."
-
             if nova_senha != confirmar_senha:
                 return "As novas senhas não coincidem."
 
@@ -281,45 +296,9 @@ def alterar_senha():
 
     return render_template("alterar_senha.html")
 
-
-
-
-@app.route("/historicoDeOcorrencias")
-def historico_de_ocorrencias():
-    if "usuario" not in session:
-        return redirect("/login")
-
-    with sqlite3.connect(DB_PATH) as conn:
-        cursor = conn.cursor()
-
-        # Recupera o ID do usuário atual pela sessão
-        cursor.execute("SELECT id_user FROM Usuario WHERE nome = ?", (session["usuario"],))
-        resultado = cursor.fetchone()
-
-        if not resultado:
-            return "Usuário não encontrado."
-
-        id_user = resultado[0]
-
-        # Busca todas as ocorrências desse usuário
-        cursor.execute("""
-            SELECT data_inicio, data_conclusao, titulo, descricao, estagio, local
-            FROM Ocorrencia
-            WHERE id_user = ?
-            ORDER BY data_inicio DESC
-        """, (id_user,))
-
-        ocorrencias = cursor.fetchall()
-
-    return render_template("historicoDeOcorrencias.html", ocorrencias=ocorrencias)
-
-
-
-
 ##########################################
-################# Admin ##################
+################ ADMIN ###################
 ##########################################
-
 
 @app.route("/admin/cadastros")
 def admin_cadastros():
@@ -328,12 +307,12 @@ def admin_cadastros():
 
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT id_user, nome, email, telefone, cpf, rg, dat_nac, ind_front, ind_back FROM Usuario WHERE status = 'pendente'")
+        cursor.execute("SELECT id_user, nome, email, telefone, cpf, rg, dat_nac, ind_front, ind_back FROM Usuario WHERE status = 'Em andamento'")
         resultados = cursor.fetchall()
 
         usuarios = []
         for row in resultados:
-            usuario = {
+            usuarios.append({
                 "id_user": row[0],
                 "nome": row[1],
                 "email": row[2],
@@ -343,12 +322,9 @@ def admin_cadastros():
                 "dat_nac": row[6],
                 "front": base64.b64encode(row[7]).decode('utf-8') if row[7] else '',
                 "back": base64.b64encode(row[8]).decode('utf-8') if row[8] else '',
-            }
-            usuarios.append(usuario)
+            })
 
     return render_template("admin_Cadastro.html", usuarios=usuarios)
-
-
 
 @app.route("/admin/validar_cadastro", methods=["POST"])
 def validar_cadastro():
@@ -366,36 +342,23 @@ def validar_cadastro():
 
     return redirect("/admin/cadastros")
 
-
-
-@app.route("/admin/ocorrencias")
+@app.route("/admin/ocorrencias", methods=["GET"])
 def admin_ocorrencias():
-    if "admin" not in session:
-        return redirect("/login")
-
-    # aqui você vai buscar ocorrências "pendentes" e renderizar admin_Ocorrencia.html depois
-    return render_template("admin_Ocorrencia.html")
-
-
-
-@app.route("/admin/ocorrencias_pendentes")
-def admin_ocorrencias_pendentes():
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
-        cursor.execute("""
-            SELECT id_ocorrencia, titulo, local, descricao
-            FROM Ocorrencia
-            WHERE estagio = 'pendente'
-        """)
-        ocorrencias = cursor.fetchall()
+        cursor.execute("SELECT id_ocorrencia, titulo, local, descricao FROM Ocorrencia WHERE estagio = 'Em andamento'")
+        dados = cursor.fetchall()
 
-        lista = [
-            {"id": o[0], "titulo": o[1], "local": o[2], "descricao": o[3]}
-            for o in ocorrencias
-        ]
+        ocorrencias = []
+        for row in dados:
+            ocorrencias.append({
+                'id': row[0],
+                'titulo': row[1],
+                'local': row[2],
+                'descricao': row[3]
+            })
 
-    return render_template("admin_Ocorrencia.html", ocorrencias=lista)
-
+    return render_template("admin_Ocorrencia.html", ocorrencias=ocorrencias)
 
 @app.route("/admin/autorizar_ocorrencia", methods=["POST"])
 def autorizar_ocorrencia():
@@ -405,34 +368,14 @@ def autorizar_ocorrencia():
 
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
-        cursor.execute("""
-            UPDATE Ocorrencia
-            SET estagio = ?
-            WHERE id_ocorrencia = ?
-        """, (status, id_ocorrencia))
+        cursor.execute("UPDATE Ocorrencia SET estagio = ? WHERE id_ocorrencia = ?", (status, id_ocorrencia))
         conn.commit()
 
     flash(f"Ocorrência {status} com sucesso!", "sucesso")
-    return redirect("/admin/ocorrencias_pendentes")
-
-
-def inserir_admin_manual():
-    email = "admin@safecircle.com"
-    senha = generate_password_hash("admin123")
-
-    with sqlite3.connect(DB_PATH) as conn:
-        cursor = conn.cursor()
-        try:
-            cursor.execute("INSERT INTO Admin (email, senha) VALUES (?, ?)", (email, senha))
-            conn.commit()
-            print("Admin inserido com sucesso!")
-        except sqlite3.IntegrityError:
-            print("Admin já existe.")
-
-
+    return redirect("/admin/ocorrencias")
 
 ##########################################
-################# Rotas ##################
+############### OUTRAS ROTAS #############
 ##########################################
 
 @app.route("/telaPrincipal")
@@ -445,13 +388,17 @@ def tela_principal():
 def configuracoes():
     return render_template("configuracoes.html")
 
+@app.route("/chamadas")
+def chamadas():
+    return render_template("chamadas.html")
+
+@app.route("/avaliacoes")
+def avaliacoes():
+    return render_template("avaliacoes.html")
+
 @app.route("/usuario_simples")
 def usuario_simples():
     return render_template("usuario.html")
-
-@app.route('/cadastro', methods=['GET'])
-def cadastro():
-    return render_template('cadastro.html')
 
 @app.route("/admin/logout", methods=["POST"])
 def admin_logout():
@@ -467,10 +414,7 @@ def logout():
 def index():
     return render_template("login.html")
 
-
-
 if __name__ == "__main__":
     criar_banco()
     inserir_admin_manual()
     app.run(debug=True)
-
