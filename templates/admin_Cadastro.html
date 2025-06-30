@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Validação de Cadastro - Administrador</title>
+  <title>Validação de Cadastro - Admin</title>
   <style>
     * {
       margin: 0;
@@ -142,11 +142,66 @@
     .btn-reject:hover {
       background-color: #c82333;
     }
+        .sidebar {
+      height: 100vh;
+      width: 250px;
+      position: fixed;
+      top: 0;
+      left: -250px; /* escondida inicialmente */
+      background-color: #c82333;
+      color: white;
+      padding: 20px;
+      box-sizing: border-box;
+      transition: left 0.3s ease;
+      z-index: 1000;
+    }
+
+    .sidebar.active {
+      left: 0;
+    }
+
+    .sidebar a {
+      color: #ecf0f1;
+      text-decoration: none;
+      display: block;
+      margin: 15px 0;
+    }
+
+    /* Botão menu fixo */
+    .menu-btn {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      font-size: 30px;
+      background: none;
+      border: none;
+      color: #2c3e50;
+      cursor: pointer;
+      z-index: 1100; /* acima da sidebar */
+    }
+
+    @media screen and (max-width: 400px) {
+      .container {
+        padding: 16px;
+      }
+
+      .botao {
+        font-size: 14px;
+        padding: 12px;
+      }
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <header>
+      <button class="menu-btn" onclick="toggleSidebar()">☰</button>
+  
+      <div class="sidebar" id="sidebar">
+        <h2>Menu</h2>
+        <a href="#">Cadastros</a>
+        <a href="#">Ocorrências</a>
+      </div>
       <h2>Validação de Cadastro</h2>
     </header>
 
@@ -180,5 +235,13 @@
       </div>
     </form>
   </div>
+  <script>
+      function toggleSidebar() {
+      const sidebar = document.getElementById('sidebar');
+      const main = document.getElementById('main');
+      sidebar.classList.toggle('active');
+      main.classList.toggle('shifted');
+    }
+  </script>
 </body>
 </html>
