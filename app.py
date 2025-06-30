@@ -198,6 +198,45 @@ def historico_de_ocorrencias():
 
     return render_template("historicoDeOcorrencias.html", ocorrencias=ocorrencias)
 
+
+@app.route("/avaliacoes", methods=["GET", "POST"])
+def avaliacoes():
+    if "usuario" not in session:
+        return redirect("/login")
+
+    if request.method == "POST":
+        nome = session["usuario"]
+        nota = int(request.form["nota"])
+        comentario = request.form["comentario"]
+        data = datetime.now()
+
+        if nota < 1 or nota > 5 or not comentario.strip():
+            flash("Nota inválida ou comentário em branco.", "erro")
+            return redirect("/avaliacoes")
+
+        try:
+            with sqlite3.connect(DB_PATH) as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    INSERT INTO Avaliacao (nome_usuario, nota, comentario, data_avaliacao)
+                    VALUES (?, ?, ?, ?)
+                """, (nome, nota, comentario.strip(), data))
+                conn.commit()
+                flash("Avaliação enviada com sucesso!", "sucesso")
+        except Exception as e:
+            return f"Erro ao salvar avaliação: {str(e)}"
+
+        return redirect("/avaliacoes")
+
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT nome_usuario, nota, comentario, data_avaliacao
+            FROM Avaliacao ORDER BY data_avaliacao DESC
+        """)
+        avaliacoes = cursor.fetchall()
+
+    return render_template("avaliacoes.html", avaliacoes=avaliacoes)
 ##########################################
 ########## PERFIL DO USUÁRIO #############
 ##########################################
