@@ -47,11 +47,15 @@
       left: 0;
     }
 
-    .sidebar a {
+    .sidebar a, .sidebar form button {
       color: #ecf0f1;
       text-decoration: none;
       display: block;
       margin: 15px 0;
+      background: none;
+      border: none;
+      font-size: 16px;
+      cursor: pointer;
     }
 
     main {
@@ -125,12 +129,14 @@
 
   <div class="sidebar" id="sidebar">
     <h2>Menu</h2>
-    <a href="#">Configurações</a>
-    <a href="#">Avaliação</a>
-    <a href="#">Perfil</a>
-    <a href="#">Entidades</a>
-    <a href="#">Histórico de Ocorrências</a>
-    <a href="#">Sair</a>
+    <a href="{{ url_for('configuracoes') }}">Configurações</a>
+    <a href="{{ url_for('avaliacoes') }}">Avaliação</a>
+    <a href="{{ url_for('usuario') }}">Perfil</a>
+    <a href="{{ url_for('chamadas') }}">Entidades</a>
+    <a href="{{ url_for('historico_de_ocorrencias') }}">Histórico de Ocorrências</a>
+    <form action="{{ url_for('logout') }}" method="post">
+      <button type="submit">Sair</button>
+    </form>
   </div>
 
   <main>
