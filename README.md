@@ -1,5 +1,7 @@
 # SafeCircle 
 
+Gabriel Beltrão Laus, Rafael da Cunha e Gabriel Bartolomeu da Silva
+
 App simples para gerenciamento de usuários e ocorrências com Flask e SQLite.
 
 ---
